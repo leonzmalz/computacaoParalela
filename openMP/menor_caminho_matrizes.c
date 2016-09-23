@@ -19,27 +19,35 @@ void imprimirMatriz(int m[TAM][TAM]) {
     printf("\n");
 }
 
-void calculaMatrizPesos(int mAdjacente[TAM][TAM], int mPesos[TAM][TAM]){
-    int i, j, k;
-    int mAuxiliar[TAM][TAM];
-    copiaMatriz(mAdjacente, mAuxiliar);
-    int novoValor = 0;
-    //Multiplicarei as matrizes TAM vezes
-    for (k = 0; k < TAM; k ++){
-       for(i = 0; i < TAM; i ++){
-            for(j = 0; j < TAM; j ++){
-                novoValor += mAdjacente[k][j] * mAuxiliar[j][i];
-            }
-            mPesos[k][i] = novoValor;
-       }
-    }
-}
-
 void copiaMatriz (int mOrigem[TAM][TAM], int mDestino[TAM][TAM]){
     int i,j;
+    #pragma omp parallel for private(i,j)
     for(i = 0; i < TAM; i ++)
         for(j = 0; j < TAM; j ++)
             mDestino[i][j] = mOrigem[i][j]; 
+}
+
+void calculaMatrizPesos(int mAdjacente[TAM][TAM], int mPesos[TAM][TAM]){
+    int h, i, j, k;
+    int count = TAM;
+    int mAuxiliar[TAM][TAM];
+    copiaMatriz(mAdjacente, mAuxiliar);
+    int novoValor = 0;
+    #pragma omp parallel private(h, i, j, k, novoValor)
+    #pragma omp for schedule(static) 
+    for(h = 0; h < count; h ++){
+        for (i = 0; i < count; i ++){
+           for(j = 0; j < count; j ++){
+                novoValor = 0;
+                for(k = 0; k < count; k ++)
+                    novoValor += mAdjacente[i][k] * mAuxiliar[k][j];
+                mAuxiliar[i][j] = novoValor;
+                if(mPesos[i][j] == 0)
+                    mPesos[i][j] = novoValor;
+           }
+        }
+    }
+
 }
 
 main(){
