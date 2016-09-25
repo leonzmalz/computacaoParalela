@@ -2,7 +2,7 @@
 #include <omp.h>
 #include <stdlib.h>
  
-#define TAM 5
+#define TAM 10
 
 void imprimirMatriz(int m[TAM][TAM]) {
     int i, j;
@@ -20,16 +20,27 @@ void imprimirMatriz(int m[TAM][TAM]) {
 }
 void zeraMatriz(int m[TAM][TAM]){
     int i, j;
-    #pragma omp parallel for private(i,j)
+    //#pragma omp parallel private(i,j)
+    for (i = 0; i < TAM; i ++)
+        for (j = 0; j < TAM; j ++)
+            m[i][j] = 0;
+}
+
+
+void inicializaMatrizAdjacente(int mAdjacente[TAM][TAM]){
+    int i, j;
+    //#pragma omp parallel private(i,j)
+    srand( (unsigned)time(NULL));
     for (i = 0; i < TAM; i ++){
         for (j = 0; j < TAM; j ++){
-            m[i][j] = 0;
-        }       
+            mAdjacente[i][j] = rand() % 2;
+        }
     }
 }
+
 void copiaMatriz (int mOrigem[TAM][TAM], int mDestino[TAM][TAM]){
     int i,j;
-    #pragma omp parallel for private(i,j)
+    //#pragma omp parallel private(i,j) 
     for(i = 0; i < TAM; i ++)
         for(j = 0; j < TAM; j ++)
             mDestino[i][j] = mOrigem[i][j]; 
@@ -37,8 +48,7 @@ void copiaMatriz (int mOrigem[TAM][TAM], int mDestino[TAM][TAM]){
 void multiplicarMatrizes(int m1[TAM][TAM], int m2[TAM][TAM], int mResult[TAM][TAM]){
     int i, j, k;
     int count = TAM;
-    #pragma omp parallel private(i, j, k)
-    #pragma omp for schedule(static) 
+    #pragma omp parallel private(i, j, k) 
     for (i = 0; i < count; i ++)
        for(j = 0; j < count; j ++)
             for(k = 0; k < count; k ++)
@@ -48,13 +58,14 @@ void multiplicarMatrizes(int m1[TAM][TAM], int m2[TAM][TAM], int mResult[TAM][TA
 //Grau será o número da matriz de distâncias
 void atualizaMatrizDistancias(int mDistancias[TAM][TAM], int mNovasDistancias[TAM][TAM], int grau){
     int i, j;
-    #pragma omp parallel private(i, j)
+    //#pragma omp parallel private(i, j)
     for (i = 0; i < TAM; i ++)
        for(j = 0; j < TAM; j ++)
             if(mDistancias[i][j] == 0 && mNovasDistancias[i][j] != 0)
                 mDistancias[i][j] = grau;
     
 }
+
 
 void calculaDistancias(int mAdjacente[TAM][TAM], int mDistancias[TAM][TAM]){
     int h;
@@ -74,11 +85,15 @@ void calculaDistancias(int mAdjacente[TAM][TAM], int mDistancias[TAM][TAM]){
 }
 
 main(){
-    int matrizAdjacente[TAM][TAM] = {{0,0,1,0,0},{1,0,0,0,0},{0,1,0,0,1},{0,1,0,0,0},{0,0,0,1,0}}; 
+    double start,stop;
+    int matrizAdjacente[TAM][TAM];// = {{0,0,1,0,0},{1,0,0,0,0},{0,1,0,0,1},{0,1,0,0,0},{0,0,0,1,0}}; 
     int matrizDistancias[TAM][TAM];
-
+    start = omp_get_wtime();
+    inicializaMatrizAdjacente(matrizAdjacente);
     zeraMatriz(matrizDistancias);
-    imprimirMatriz(matrizAdjacente);   
+    //imprimirMatriz(matrizAdjacente);   
     calculaDistancias(matrizAdjacente, matrizDistancias);
-    imprimirMatriz(matrizDistancias);
+    //imprimirMatriz(matrizDistancias);
+    stop = omp_get_wtime();
+    printf("tempo %f\n",stop-start);
 }
