@@ -18,7 +18,15 @@ void imprimirMatriz(int m[TAM][TAM]) {
     }
     printf("\n");
 }
-
+void zeraMatriz(int m[TAM][TAM]){
+    int i, j;
+    #pragma omp parallel for private(i,j)
+    for (i = 0; i < TAM; i ++){
+        for (j = 0; j < TAM; j ++){
+            m[i][j] = 0;
+        }       
+    }
+}
 void copiaMatriz (int mOrigem[TAM][TAM], int mDestino[TAM][TAM]){
     int i,j;
     #pragma omp parallel for private(i,j)
@@ -26,35 +34,51 @@ void copiaMatriz (int mOrigem[TAM][TAM], int mDestino[TAM][TAM]){
         for(j = 0; j < TAM; j ++)
             mDestino[i][j] = mOrigem[i][j]; 
 }
-
-void calculaMatrizPesos(int mAdjacente[TAM][TAM], int mPesos[TAM][TAM]){
-    int h, i, j, k;
+void multiplicarMatrizes(int m1[TAM][TAM], int m2[TAM][TAM], int mResult[TAM][TAM]){
+    int i, j, k;
     int count = TAM;
-    int mAuxiliar[TAM][TAM];
-    copiaMatriz(mAdjacente, mAuxiliar);
-    int novoValor = 0;
-    #pragma omp parallel private(h, i, j, k, novoValor)
+    #pragma omp parallel private(i, j, k)
     #pragma omp for schedule(static) 
-    for(h = 0; h < count; h ++){
-        for (i = 0; i < count; i ++){
-           for(j = 0; j < count; j ++){
-                novoValor = 0;
-                for(k = 0; k < count; k ++)
-                    novoValor += mAdjacente[i][k] * mAuxiliar[k][j];
-                mAuxiliar[i][j] = novoValor;
-                if(mPesos[i][j] == 0)
-                    mPesos[i][j] = novoValor;
-           }
-        }
+    for (i = 0; i < count; i ++)
+       for(j = 0; j < count; j ++)
+            for(k = 0; k < count; k ++)
+                mResult[i][j] += m1[i][k] * m2[k][j];
+}
+
+//Grau será o número da matriz de distâncias
+void atualizaMatrizDistancias(int mDistancias[TAM][TAM], int mNovasDistancias[TAM][TAM], int grau){
+    int i, j;
+    #pragma omp parallel private(i, j)
+    for (i = 0; i < TAM; i ++)
+       for(j = 0; j < TAM; j ++)
+            if(mDistancias[i][j] == 0 && mNovasDistancias[i][j] != 0)
+                mDistancias[i][j] = grau;
+    
+}
+
+void calculaDistancias(int mAdjacente[TAM][TAM], int mDistancias[TAM][TAM]){
+    int h;
+    int mAuxiliar[TAM][TAM];
+    int mResult[TAM][TAM];
+    zeraMatriz(mResult);
+    copiaMatriz(mAdjacente, mAuxiliar);
+    copiaMatriz(mAdjacente, mDistancias); //Primeira matriz de distâncias é a matriz adjacente
+    for(h = 2; h <= TAM; h ++){
+        multiplicarMatrizes(mAdjacente, mAuxiliar, mResult);
+        //imprimirMatriz(mResult);
+        atualizaMatrizDistancias(mDistancias, mResult, h);
+        copiaMatriz(mResult, mAuxiliar);
+        zeraMatriz(mResult);
     }
 
 }
 
 main(){
     int matrizAdjacente[TAM][TAM] = {{0,0,1,0,0},{1,0,0,0,0},{0,1,0,0,1},{0,1,0,0,0},{0,0,0,1,0}}; 
-    int matrizPesos[TAM][TAM] = {{0,0,0,0,0},{0,0,0,0,0},{0,0,0,0,0},{0,0,0,0,0},{0,0,0,0,0}}; ; //Matriz resultante dos pesos
-   
+    int matrizDistancias[TAM][TAM];
+
+    zeraMatriz(matrizDistancias);
     imprimirMatriz(matrizAdjacente);   
-    calculaMatrizPesos(matrizAdjacente, matrizPesos);
-    imprimirMatriz(matrizPesos);
+    calculaDistancias(matrizAdjacente, matrizDistancias);
+    imprimirMatriz(matrizDistancias);
 }
