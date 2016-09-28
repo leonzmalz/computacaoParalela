@@ -2,7 +2,7 @@
 #include <omp.h>
 #include <stdlib.h>
  
-#define TAM 10 
+#define TAM 100 
 
 int matrizPesos[TAM][TAM]; 
  
