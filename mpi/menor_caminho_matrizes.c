@@ -1,4 +1,4 @@
-/* Menor caminho de Grafo pelo método da multiplicação de matrizes, utilizando openMP
+/* Menor caminho de Grafo pelo método da multiplicação de matrizes, utilizando MPI
    Desenvolvido por: Leonardo Pinheiro do Nascimento
 
    Entrada de dados: Matriz adjacente do grafo, gerado aleatóriamente pelo método inicializarMatrizAdjacente
@@ -7,7 +7,7 @@
 */
 
 #include <stdio.h>
-#include <omp.h>
+#include <mpi.h>
 #include <stdlib.h>
  
 #define TAM 10
@@ -63,12 +63,14 @@ void copiaMatriz (int** mOrigem, int** mDestino){
 //Realiza a multiplicação de duas matrizes
 void multiplicarMatrizes(int** m1, int** m2, int** mResult){
     int i, j, k;
-    //Bloco executado em paralelo
-    #pragma omp parallel for private(k,i,j)
+    MPI_Bcast (m2, TAM*TAM, MPI_INT, 0, MPI_COMM_WORLD);
+    MPI_Scatter (m1, TAM*TAM, MPI_INT, m1[0], TAM*TAM, MPI_INT, 0, MPI_COMM_WORLD);
     for (i = 0; i < TAM; i ++)
        for(j = 0; j < TAM; j ++)
             for(k = 0; k < TAM; k ++)
                 mResult[i][j] += m1[i][k] * m2[k][j];
+    MPI_Gather (mResult[0], TAM*TAM, MPI_INT, mResult, TAM*TAM, MPI_INT, 0, MPI_COMM_WORLD);
+       
 }
 
 //Atualiza a matriz de distâncias, de acordo com o grau fornecido
@@ -103,16 +105,22 @@ void calculaDistancias(int** mAdjacente, int** mDistancias){
 
 }
 
-main(){
+int main(int argc, char * argv[]){
     double start,stop;
     int** matrizAdjacente  = getNovaMatriz();
     int** matrizDistancias = getNovaMatriz();
+    int p, myrank;
+    MPI_Init (&argc, &argv);
+    MPI_Comm_rank(MPI_COMM_WORLD, &myrank);
+    MPI_Comm_size(MPI_COMM_WORLD, &p);
+    printf("%d\n",p);
+    printf("%d\n",myrank);
     inicializaMatrizAdjacente(matrizAdjacente);
     zeraMatriz(matrizDistancias);
     imprimirMatriz(matrizAdjacente);   
-    start = omp_get_wtime();
+    start = clock();
     calculaDistancias(matrizAdjacente, matrizDistancias);
     imprimirMatriz(matrizDistancias);
-    stop = omp_get_wtime();
+    stop = clock();
     printf("tempo %f\n",stop-start);
 }
