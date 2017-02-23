@@ -14,7 +14,7 @@
 #include <omp.h>
 #include <stdlib.h>
  
-#define TAM 50
+#define TAM 6
 
 void imprimirMatriz(int** m) {
     int i, j;
@@ -62,6 +62,7 @@ void inicializaMatrizAdjacente(int** mAdjacente){
 void copiaMatriz (int** mOrigem, int** mDestino){
     int i,j;
     //Bloco executado em paralelo
+    omp_set_num_threads(4); //Define o numero de threads
     #pragma omp parallel for private(i,j)
     for(i = 0; i < TAM; i ++)
         for(j = 0; j < TAM; j ++)
@@ -72,6 +73,7 @@ void copiaMatriz (int** mOrigem, int** mDestino){
 void multiplicarMatrizes(int** m1, int** m2, int** mResult){
     int i, j, k;
     //Bloco executado em paralelo
+    omp_set_num_threads(4); //Define o numero de threads
     #pragma omp parallel for private(k,i,j)
     for (i = 0; i < TAM; i ++)
        for(j = 0; j < TAM; j ++)
@@ -113,7 +115,6 @@ main(){
     double start,stop;
     int** matrizAdjacente  = getNovaMatriz();
     int** matrizDistancias = getNovaMatriz();
-    
     start = omp_get_wtime();
     inicializaMatrizAdjacente(matrizAdjacente);
     zeraMatriz(matrizDistancias);

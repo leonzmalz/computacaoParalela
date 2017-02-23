@@ -1,7 +1,15 @@
+/* Menor caminho de Grafo pelo método da multiplicação de matrizes, utilizando MPI
+   Desenvolvido por: Leonardo Pinheiro do Nascimento
+
+   Entrada de dados: Matriz adjacente do grafo, gerado aleatóriamente pelo método inicializarMatrizAdjacente
+   Saída de dados: Matriz contendo as menores distâncias entre todos os vértices do grafo 
+
+*/
 #include "mpi.h"
 #include <stdio.h>
 #include <stdlib.h>
-#define TAM 4   
+#include <time.h>
+#define TAM 500   
 #define MASTER 0           
 #define FROM_MASTER 1          
 #define FROM_WORKER 2         
@@ -27,7 +35,10 @@ void inicializaMatrizAdjacente(int  mAdjacente[TAM][TAM]){
     srand( (unsigned)time(NULL));
     for (i = 0; i < TAM; i ++){
         for (j = 0; j < TAM; j ++){
-            mAdjacente[i][j] = rand() % 2;
+            if(i == j)
+              mAdjacente[i][j] = 0;
+            else
+              mAdjacente[i][j] = rand() % 2;
         }
     }
 }
@@ -63,13 +74,20 @@ void multiplicarMatrizes(int m1[TAM][TAM], int m2[TAM][TAM], int mResult[TAM][TA
 int main (int argc, char *argv[]){
     int totalTask, taskid, origem, dest, totalThreads, rows, lastRow, grau;         
     int mAdjacente[TAM][TAM], mAuxiliar[TAM][TAM], mResult[TAM][TAM], mDistancias[TAM][TAM];
-    MPI_Status status;
+    MPI_Status status; //Estrutura possuindo detalhes sobre a transmissão
+    clock_t start, stop;
 
+    start = clock();
+    //Inicializa o ambiente de execução 
     MPI_Init(&argc,&argv);
+     //Determina a variavel que irá guardar o rank do processo
     MPI_Comm_rank(MPI_COMM_WORLD,&taskid);
+    //Determina o numero de processos com valor padrão
     MPI_Comm_size(MPI_COMM_WORLD,&totalTask);
 
+
     //Inicializacao das matrizes
+    //Caso seja o processo principal
     if(taskid  == MASTER){
         totalThreads = totalTask - 1; //Ignoro a master
         printf("Matriz Adjacente Gerada aleatoriamente...\n");
@@ -91,32 +109,43 @@ int main (int argc, char *argv[]){
                 rows = (TAM/totalThreads) + 1;
              else
                 rows = (TAM/totalThreads);
+             //Envia as mensagens contendo a matriz adjacente, auxiliar,
+             //ultima linha da submatriz e total de linhas
              MPI_Send(&lastRow, 1, MPI_INT, dest, FROM_MASTER, MPI_COMM_WORLD);
              MPI_Send(&rows, 1, MPI_INT, dest, FROM_MASTER, MPI_COMM_WORLD);
              MPI_Send(&mAdjacente[lastRow][0], rows*TAM, MPI_INT, dest, FROM_MASTER, MPI_COMM_WORLD);
              MPI_Send(&mAuxiliar, TAM*TAM, MPI_INT, dest, FROM_MASTER, MPI_COMM_WORLD);
              lastRow += rows;
           }
-          //Recebo a matriz resultante da multiplicação
+          
+          //Recebo a matriz resultante das multiplicações
           for (origem=1; origem<= totalThreads; origem++){
              MPI_Recv(&lastRow, 1, MPI_INT, origem, FROM_WORKER, MPI_COMM_WORLD, &status);
              MPI_Recv(&rows, 1, MPI_INT, origem, FROM_WORKER, MPI_COMM_WORLD, &status);
              MPI_Recv(&mResult[lastRow][0], rows*TAM, MPI_INT, origem, FROM_WORKER, MPI_COMM_WORLD, &status); 
           }
+          
           atualizaMatrizDistancias(mDistancias, mResult, grau);
           copiaMatriz(mResult, mAuxiliar);
           printf("Matriz de distâncias atual:\n");
           imprimirMatriz(mDistancias);
-       }
 
+          if (grau == TAM){
+            stop = clock();
+            printf("tempo %lf ms\n",(double)(stop-start)/ CLOCKS_PER_SEC);
+          }
+       }
+       //Caso não seja o processo principal
        if (taskid > MASTER){
+          //Recebe a submatriz enviada pela MASTER
           MPI_Recv(&lastRow, 1, MPI_INT, MASTER, FROM_MASTER, MPI_COMM_WORLD, &status);
           MPI_Recv(&rows, 1, MPI_INT, MASTER, FROM_MASTER, MPI_COMM_WORLD, &status);
           MPI_Recv(&mAdjacente, rows*TAM, MPI_INT, MASTER, FROM_MASTER, MPI_COMM_WORLD, &status);
           MPI_Recv(&mAuxiliar, TAM*TAM, MPI_INT, MASTER, FROM_MASTER, MPI_COMM_WORLD, &status);
           
           multiplicarMatrizes(mAdjacente, mAuxiliar, mResult, rows);
-          
+
+          //Envia a submatriz multiplicada para o MASTER
           MPI_Send(&lastRow, 1, MPI_INT, MASTER, FROM_WORKER, MPI_COMM_WORLD);
           MPI_Send(&rows, 1, MPI_INT, MASTER, FROM_WORKER, MPI_COMM_WORLD);
           MPI_Send(&mResult, rows*TAM, MPI_INT, MASTER, FROM_WORKER, MPI_COMM_WORLD);
@@ -125,4 +154,5 @@ int main (int argc, char *argv[]){
     }
     MPI_Finalize();
 
+    
 }
